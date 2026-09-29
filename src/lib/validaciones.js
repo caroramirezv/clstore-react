@@ -1,4 +1,3 @@
-// Validaciones portadas 1:1 desde el proyecto original (js/Registro.js y js/admin.js)
 
 export function validarRunChileno(run) {
   const runLimpio = run.replace(/[.\-\s]/g, '').toUpperCase();
