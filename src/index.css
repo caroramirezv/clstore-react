@@ -1,0 +1,235 @@
+body {
+    background-color: #0b0b0e;
+    color: #e0e0e0;
+    font-family: 'Montserrat', sans-serif;
+}
+
+th {
+    font-family: 'Inter', sans-serif;
+    color: #ffffff;
+}
+
+p {
+    font-size: 30px;
+    font-family: 'Montserrat', sans-serif;
+}
+
+.card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: #161619;
+    color: #e0e0e0;
+}
+
+footer {
+    background-color: #161619;
+    color: #ffffff;
+    padding: 2rem 0;
+    text-align: center;
+    margin-top: 3rem;
+}
+
+.card-img-top {
+    height: 200px; 
+    object-fit: contain; 
+    padding: 15px; 
+}
+
+.card-body {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex-grow: 1;
+}
+
+#carouselExample {
+    padding: 0 60px;
+    position: relative;
+}
+
+#carouselExample .carousel-control-prev,
+#carouselExample .carousel-control-next {
+    width: 40px;
+    height: 40px;
+    top: 50%;
+    transform: translateY(-50%); 
+    background-color: rgba(0, 0, 0, 0.1); 
+    border-radius: 50%; 
+}
+
+#carouselExample .carousel-control-prev {
+    left: 10px;
+}
+
+#carouselExample .carousel-control-next {
+    right: 10px;
+}
+
+#carouselExample .carousel-control-prev:hover,
+#carouselExample .carousel-control-next:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.carousel-banner-img {
+    max-height: 500px;
+    object-fit: cover;
+}
+
+
+.content-body {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+@media (max-width: 576px) {
+    .content-body {
+        padding: 1rem 0.75rem;
+    }
+}
+.cart-card {
+    background-color: #161619;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cart-card table {
+    color: #e0e0e0;
+    background-color: transparent;
+}
+
+.cart-card thead th {
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #9d9d9d;
+    padding-bottom: 0.9rem;
+}
+
+.cart-card tbody tr {
+    border-color: rgba(255, 255, 255, 0.07);
+    transition: background-color 0.15s ease;
+}
+
+.cart-card tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.03);
+}
+
+.cart-card tbody td {
+    vertical-align: middle;
+    padding: 1rem 0.5rem;
+}
+
+.cart-item-thumb {
+    width: 56px;
+    height: 56px;
+    object-fit: cover;
+    border-radius: 10px;
+    background-color: #0b0b0e;
+    margin-right: 0.85rem;
+}
+
+.cart-item-name {
+    font-weight: 600;
+    color: #ffffff;
+}
+
+.cart-item-price,
+.cart-item-subtotal {
+    font-family: 'Inter', sans-serif;
+    color: #e0e0e0;
+}
+
+.cart-item-subtotal {
+    font-weight: 700;
+    color: #ffffff;
+}
+
+
+.qty-control {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.qty-btn {
+    background: transparent;
+    border: none;
+    color: #e0e0e0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: background-color 0.15s ease;
+}
+
+.qty-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.qty-value {
+    width: 32px;
+    text-align: center;
+    font-weight: 600;
+    color: #ffffff;
+}
+
+
+.btn-remove-item {
+    background: transparent;
+    border: none;
+    color: #ff6b6b;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.btn-remove-item:hover {
+    background-color: rgba(255, 107, 107, 0.15);
+}
+
+
+.cart-card .table {
+    --bs-table-bg: transparent !important;
+    --bs-table-striped-bg: transparent !important;
+    --bs-table-hover-bg: rgba(255, 255, 255, 0.04) !important;
+}
+
+.cart-card table,
+.cart-card thead,
+.cart-card tbody,
+.cart-card tr,
+.cart-card td,
+.cart-card th {
+    background-color: transparent !important;
+}
+
+.cart-card td {
+    color: #e0e0e0 !important;
+}
+/* --- Estilos adicionales para el panel de administración (migrados/completados) --- */
+.admin-navbar { min-height: 70px; }
+.brand-logo {
+    width: 38px; height: 38px; border-radius: 10px;
+    background-color: #0d6efd; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+}
+.nav-pills-custom .nav-link { border-radius: 999px; padding: 0.5rem 1.1rem; color: #495057; }
+.nav-pills-custom .nav-link.active { background-color: #0d6efd; color: #fff; }
+.btn-exit { background-color: #f1f3f5; color: #495057; border: none; }
+.btn-exit:hover { background-color: #e9ecef; }
+.profile-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    background-color: #e9ecef; display: flex; align-items: center; justify-content: center;
+}
