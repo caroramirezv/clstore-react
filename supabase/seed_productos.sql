@@ -1,4 +1,4 @@
--- Seed de productos (portado desde data/productos.json + js/productos.js)
+
 insert into public.productos (id, nombre, descripcion, precio, stock, stock_critico, categoria, imagen, busqueda, destacado, especificaciones)
 values
 ('rtx3080', 'RTX 3080', 'Tarjeta de video NVIDIA RTX 3080, gran rendimiento para gaming en 1440p y 4K.', 409990, 10, 2, 'componentes', '/img/rtx3080.jpg', 'rtx 3080 nvidia tarjeta grafica', '{"titulo": "Rendimiento Extremo", "texto": "Si buscas lo mejor, esta gráfica es para ti. Rendimiento ideal para jugar a máximos ajustes, altas tasas de FPS y tareas de renderizado profesional."}'::jsonb, '{"Fabricante": "NVIDIA", "Categoría": "Tarjeta gráfica", "Card Bus": "PCI-E 4.0", "Garantía": "12 meses"}'::jsonb),
@@ -12,7 +12,7 @@ values
 ('audifonosRazer', 'Audifonos Razer Gengar', 'Audífonos gamer Razer edición Gengar, sonido envolvente y micrófono integrado.', 282990, 14, 3, 'perifericos', '/img/audifonosRazer.jpg', 'audifonos razer gengar', '{"titulo": "Audio Inmersivo", "texto": "Siente cada paso del enemigo con audio espacial 7.1, luciendo un diseño exclusivo de edición limitada que no pasará desapercibido."}'::jsonb, '{"Fabricante": "Razer", "Categoría": "Audífonos gamer", "Conectividad": "Inalámbrico", "Garantía": "12 meses"}'::jsonb),
 ('Nvidia5090', 'Nvidia GeForce 5090', 'Tarjeta de video Nvidia GeForce 5090 32GB VRAM.', 3899990, 3, 1, 'componentes', '/img/rtx.jpg', 'nvidia geforce 5090 rtx tarjeta grafica', '{"titulo": "El Futuro del Gaming", "texto": "Potencia desmesurada para resoluciones 4K, 8K y el máximo aprovechamiento de la inteligencia artificial. La gráfica definitiva."}'::jsonb, '{"Color": "Negro", "Capacidad": "32GB VRAM", "Fabricante": "NVIDIA", "Card Bus": "PCI-E 5.0", "Frecuencia": "3200Mhz", "Procesadores CUDA": "41245", "Tipo de Memoria": "GDDR7", "OpenGL": "4.6", "Puertos de Salida": "Hdmi x 1 DisplayPort x 4", "Puertos de Energía": "1"}'::jsonb);
 
--- Seed de reseñas (tabla normalizada, referencia a productos)
+
 insert into public.resenas (producto_id, usuario, calificacion, comentario, fecha) values
 ('rtx3080', 'Carlos M.', 5, 'Rendimiento impecable para 1440p. Muy silenciosa.', '2026-08-10'),
 ('monitorZowie', 'Matías K.', 5, 'La mejor tasa de refresco para competitivo. 10/10.', '2026-09-02'),
