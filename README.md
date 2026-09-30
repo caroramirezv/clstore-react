@@ -1,32 +1,5 @@
-# CLstore — versión React + Supabase
 
-Migración de la tienda **CLstore** (HTML/CSS/JS + Bootstrap) a **React (Vite)**,
-reemplazando `localStorage` por **Supabase** (Postgres + Auth + Row Level Security).
-
-## Qué cambió respecto a la versión original
-
-| Antes (localStorage) | Ahora (Supabase) |
-|---|---|
-| `usuarios_clstore` (contraseñas en texto plano) | **Supabase Auth** (contraseñas hasheadas) + tabla `perfiles` con run/tipo/región/comuna/dirección |
-| `productos_clstore` | Tabla `productos` |
-| Reseñas embebidas en cada producto | Tabla `resenas` normalizada (FK a `productos`) |
-| `carrito` | Tabla `carrito_items` (por usuario) si hay sesión; en memoria si es invitado |
-| `contactos_clstore` | Tabla `contactos` |
-| Blogs hardcodeados en `js/blogs.js` | Tabla `blogs` |
-| Roles gestionados a mano en JS | Row Level Security: solo `Administrador`/`Vendedor` puede escribir productos/blogs/usuarios |
-
-## 1. Crear el proyecto en Supabase
-
-1. Crea una cuenta/proyecto en [supabase.com](https://supabase.com).
-2. Ve a **SQL Editor** y ejecuta, en este orden:
-   - `supabase/schema.sql` (crea las tablas y las políticas de RLS)
-   - `supabase/seed_productos.sql` (carga los 10 productos + reseñas)
-   - `supabase/seed_blogs.sql` (carga los 4 artículos del blog)
-3. Ve a **Settings → API** y copia:
-   - `Project URL` → `VITE_SUPABASE_URL`
-   - `anon public key` → `VITE_SUPABASE_ANON_KEY`
-
-## 2. Configurar el proyecto React
+Configuracion SupaBase
 
 ```bash
 cp .env.example .env
@@ -34,7 +7,6 @@ cp .env.example .env
 npm install
 npm run dev
 ```
-
 Las imágenes (`img/*`) ya están copiadas a `public/img/`, así que las rutas
 `/img/rtx3080.jpg`, etc. funcionan igual que en el sitio original.
 

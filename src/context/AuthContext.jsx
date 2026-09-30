@@ -3,9 +3,6 @@ import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext(null);
 
-// Sustituye a usuarioActivo / usuarios_clstore en localStorage.
-// La sesión vive en Supabase Auth; los datos de negocio (run, tipo, región, etc.)
-// viven en la tabla "perfiles", enlazada 1 a 1 con auth.users por id.
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [perfil, setPerfil] = useState(null);
@@ -48,7 +45,6 @@ export function AuthProvider({ children }) {
     return { error };
   }
 
-  // Registro: crea el usuario en Supabase Auth y luego su fila en "perfiles".
   async function signUp({ correo, password, run, nombre, apellidos, fechaNacimiento, region, comuna, direccion }) {
     const { data, error } = await supabase.auth.signUp({ email: correo, password });
     if (error) return { error };
