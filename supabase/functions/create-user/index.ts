@@ -1,22 +1,39 @@
-// supabase/functions/create-user/index.ts
-//
-// El cliente (navegador) nunca debe tener la service_role key: por eso crear
-// una cuenta de Auth "a nombre de otra persona" (como hace el botón
-// "Nuevo Usuario" del panel admin) se hace aquí, en una Edge Function que
-// corre en el servidor de Supabase con esa clave.
-//
-// Despliegue (una sola vez, con la Supabase CLI):
-//   supabase functions deploy create-user
-//
-// La función ya tiene acceso automático a SUPABASE_URL y
-// SUPABASE_SERVICE_ROLE_KEY como variables de entorno (las inyecta Supabase).
+declare const Deno: {
+  env: {
+    get: (key: string) => string | undefined;
+  };
+  serve: (handler: (req: Request) => Promise<Response> | Response) => void;
+};
 
+// @ts-expect-error Deno resuelve este módulo remoto en tiempo de ejecución.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-Deno.serve(async (req) => {
+// El navegador manda una petición OPTIONS (preflight) antes del POST porque
+// la llamada incluye el header "Authorization". Sin estas cabeceras, ese
+// preflight falla y supabase-js nunca llega a hacer la petición real — de
+// ahí el "Failed to send a request to the Edge Function".
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+function jsonResponse(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+Deno.serve(async (req: Request) => {
+  // Responder el preflight ANTES que cualquier otra cosa.
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
   try {
     const authHeader = req.headers.get('Authorization') || '';
     const token = authHeader.replace('Bearer ', '');
@@ -27,7 +44,7 @@ Deno.serve(async (req) => {
     });
     const { data: { user }, error: errorUsuario } = await supabaseAnon.auth.getUser(token);
     if (errorUsuario || !user) {
-      return new Response(JSON.stringify({ error: 'No autenticado.' }), { status: 401 });
+      return jsonResponse({ error: 'No autenticado.' }, 401);
     }
 
     // Cliente con privilegios de servicio, para verificar el rol y crear al nuevo usuario.
@@ -40,7 +57,7 @@ Deno.serve(async (req) => {
       .single();
 
     if (!perfilLlamador || !['Administrador', 'Vendedor'].includes(perfilLlamador.tipo)) {
-      return new Response(JSON.stringify({ error: 'No tienes permisos para crear usuarios.' }), { status: 403 });
+      return jsonResponse({ error: 'No tienes permisos para crear usuarios.' }, 403);
     }
 
     const body = await req.json();
@@ -52,7 +69,7 @@ Deno.serve(async (req) => {
       email_confirm: true, // se salta la confirmación por correo: lo crea un administrador
     });
     if (errorCreacion) {
-      return new Response(JSON.stringify({ error: errorCreacion.message }), { status: 400 });
+      return jsonResponse({ error: errorCreacion.message }, 400);
     }
 
     const { error: errorPerfil } = await supabaseAdmin.from('perfiles').insert({
@@ -70,11 +87,11 @@ Deno.serve(async (req) => {
     if (errorPerfil) {
       // Si falla la creación del perfil, deshacemos la cuenta de Auth para no dejar usuarios huérfanos.
       await supabaseAdmin.auth.admin.deleteUser(nuevoUsuario.user.id);
-      return new Response(JSON.stringify({ error: errorPerfil.message }), { status: 400 });
+      return jsonResponse({ error: errorPerfil.message }, 400);
     }
 
-    return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    return jsonResponse({ ok: true });
   } catch (e) {
-    return new Response(JSON.stringify({ error: String(e) }), { status: 500 });
+    return jsonResponse({ error: String(e) }, 500);
   }
 });
