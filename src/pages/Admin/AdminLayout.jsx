@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AdminProductos from './AdminProductos';
 import AdminUsuarios from './AdminUsuarios';
-
+//Falta implementar nuevas funciones dentro de Admin, ademas de mejorar el layout general.
 export default function AdminLayout() {
   const { perfil, signOut } = useAuth();
   const [seccion, setSeccion] = useState('productos');
