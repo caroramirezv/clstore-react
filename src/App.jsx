@@ -16,6 +16,7 @@ import BlogDetalle from './pages/BlogDetalle';
 import Registro from './pages/Registro';
 import InicioSesion from './pages/InicioSesion';
 import AdminLayout from './pages/Admin/AdminLayout';
+import Checkout from './pages/Checkout';
 
 function Layout({ children }) {
   return (
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="/registro" element={<Registro />} />
                 <Route path="/iniciar-sesion" element={<InicioSesion />} />
                 <Route path="*" element={<Home />} />
+                <Route path="/checkout" element={<Checkout />} />
               </Routes>
             </Layout>
           } />
