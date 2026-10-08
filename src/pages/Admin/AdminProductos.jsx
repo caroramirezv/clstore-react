@@ -11,7 +11,7 @@ const CATEGORIA_LABELS = {
 };
 
 const formVacio = {
-  id: '', nombre: '', descripcion: '', precio: '', stock: '', stockCritico: '', categoria: '', imagen: '',
+  id: '', nombre: '', descripcion: '', precio: '', stock: '', stockCritico: '', categoria: '', imagen: '', descuento: '',
 };
 
 export default function AdminProductos() {
@@ -43,6 +43,7 @@ export default function AdminProductos() {
       stockCritico: p.stock_critico ?? '',
       categoria: p.categoria || '',
       imagen: p.imagen || '',
+      descuento: p.descuento_porcentaje ?? '',
     });
     setEsEdicion(true);
   }
@@ -57,6 +58,7 @@ export default function AdminProductos() {
     const precio = parseFloat(form.precio);
     const stock = parseInt(form.stock, 10);
     const stockCritico = form.stockCritico === '' ? null : parseInt(form.stockCritico, 10);
+    const descuento = form.descuento === '' ? null : parseInt(form.descuento, 10);
 
     if (form.id.length < 3) {
       Swal.fire('Código inválido', 'El código del producto debe tener al menos 3 caracteres.', 'error');
@@ -66,26 +68,26 @@ export default function AdminProductos() {
       Swal.fire('Datos incompletos', 'Revisa que nombre, precio, stock y categoría estén completos.', 'error');
       return;
     }
+    if (descuento !== null && (Number.isNaN(descuento) || descuento < 1 || descuento > 95)) {
+      Swal.fire('Descuento inválido', 'El descuento debe ser un número entre 1 y 95 (déjalo vacío si no está en oferta).', 'error');
+      return;
+    }
+
+    const payload = {
+      nombre: form.nombre, descripcion: form.descripcion, precio, stock,
+      stock_critico: stockCritico, categoria: form.categoria,
+      imagen: form.imagen || '/img/Logo.png', busqueda: form.nombre.toLowerCase(),
+      descuento_porcentaje: descuento,
+    };
 
     if (esEdicion) {
-      const { error } = await supabase
-        .from('productos')
-        .update({
-          nombre: form.nombre, descripcion: form.descripcion, precio, stock,
-          stock_critico: stockCritico, categoria: form.categoria,
-          imagen: form.imagen || 'img/Logo.png', busqueda: form.nombre.toLowerCase(),
-        })
-        .eq('id', form.id);
+      const { error } = await supabase.from('productos').update(payload).eq('id', form.id);
       if (error) { Swal.fire('Error', error.message, 'error'); return; }
     } else {
       const { data: existente } = await supabase.from('productos').select('id').eq('id', form.id).maybeSingle();
       if (existente) { Swal.fire('Código repetido', 'Ya existe un producto con ese código.', 'error'); return; }
 
-      const { error } = await supabase.from('productos').insert({
-        id: form.id, nombre: form.nombre, descripcion: form.descripcion, precio, stock,
-        stock_critico: stockCritico, categoria: form.categoria,
-        imagen: form.imagen || 'img/Logo.png', busqueda: form.nombre.toLowerCase(),
-      });
+      const { error } = await supabase.from('productos').insert({ id: form.id, ...payload });
       if (error) { Swal.fire('Error', error.message, 'error'); return; }
     }
 
@@ -122,13 +124,13 @@ export default function AdminProductos() {
             <table className="table table-hover align-middle mb-0">
               <thead className="table-dark">
                 <tr>
-                  <th>Imagen</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th>
+                  <th>Imagen</th><th>Código</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Oferta</th>
                   <th className="text-end pe-4">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {productos.length === 0 && (
-                  <tr><td colSpan={7} className="text-center text-muted py-4">No hay productos guardados todavía.</td></tr>
+                  <tr><td colSpan={8} className="text-center text-muted py-4">No hay productos guardados todavía.</td></tr>
                 )}
                 {productos.map((p) => (
                   <tr key={p.id}>
@@ -141,6 +143,13 @@ export default function AdminProductos() {
                       {p.stock ?? 0}
                       {p.stock_critico != null && p.stock <= p.stock_critico && (
                         <span className="badge bg-danger ms-1">Stock bajo</span>
+                      )}
+                    </td>
+                    <td>
+                      {p.descuento_porcentaje ? (
+                        <span className="badge bg-danger">-{p.descuento_porcentaje}%</span>
+                      ) : (
+                        <span className="text-muted small">—</span>
                       )}
                     </td>
                     <td className="text-end pe-4">
@@ -184,20 +193,26 @@ export default function AdminProductos() {
                   <textarea className="form-control" rows={2} maxLength={500}
                     value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} />
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-3">
                   <label className="form-label fw-semibold">Precio ($) *</label>
                   <input type="number" step="0.01" min="0" className="form-control" required
                     value={form.precio} onChange={(e) => setForm({ ...form, precio: e.target.value })} />
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-3">
                   <label className="form-label fw-semibold">Stock *</label>
                   <input type="number" step="1" min="0" className="form-control" required
                     value={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.value })} />
                 </div>
-                <div className="col-md-4">
-                  <label className="form-label fw-semibold">Stock Crítico (Opcional)</label>
+                <div className="col-md-3">
+                  <label className="form-label fw-semibold">Stock Crítico</label>
                   <input type="number" step="1" min="0" className="form-control"
                     value={form.stockCritico} onChange={(e) => setForm({ ...form, stockCritico: e.target.value })} />
+                </div>
+                <div className="col-md-3">
+                  <label className="form-label fw-semibold">Descuento % (Oferta)</label>
+                  <input type="number" step="1" min="1" max="95" className="form-control" placeholder="Ej: 15"
+                    value={form.descuento} onChange={(e) => setForm({ ...form, descuento: e.target.value })} />
+                  <small className="text-muted">Vacío = sin oferta</small>
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-semibold">Categoría *</label>

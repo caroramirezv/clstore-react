@@ -59,8 +59,9 @@ export default function AdminUsuarios() {
       Swal.fire('Datos incompletos', 'Completa todos los campos obligatorios.', 'error');
       return;
     }
-    if (!esEdicion && (password.length < 4 || password.length > 10)) {
-      Swal.fire('Contraseña inválida', 'La contraseña debe tener entre 4 y 10 caracteres.', 'error');
+    // Supabase Auth exige 6 caracteres como mínimo por defecto.
+    if (!esEdicion && (password.length < 6 || password.length > 10)) {
+      Swal.fire('Contraseña inválida', 'La contraseña debe tener entre 6 y 10 caracteres.', 'error');
       return;
     }
 
@@ -81,12 +82,18 @@ export default function AdminUsuarios() {
         body: { run: runFormateado, tipo, nombre, apellidos, correo, fechaNacimiento, password, region, comuna, direccion },
         headers: { Authorization: `Bearer ${sesionActual.session?.access_token}` },
       });
+
       if (error) {
-        Swal.fire(
-          'No se pudo crear el usuario',
-          'Revisa que la Edge Function "create-user" esté desplegada en tu proyecto de Supabase (ver README). Detalle: ' + error.message,
-          'error'
-        );
+        // error.message solo dice "Edge Function returned a non-2xx status code".
+        // El motivo real viene en el cuerpo de la respuesta (error.context).
+        let detalle = error.message;
+        try {
+          const cuerpo = await error.context.json();
+          detalle = cuerpo.error || detalle;
+        } catch {
+          // Si no se puede leer el cuerpo, nos quedamos con el mensaje genérico.
+        }
+        Swal.fire('No se pudo crear el usuario', detalle, 'error');
         return;
       }
     }
@@ -209,11 +216,11 @@ export default function AdminUsuarios() {
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-semibold">Contraseña {esEdicion ? '' : '*'}</label>
-                  <input type="password" className="form-control" minLength={4} maxLength={10}
-                    placeholder={esEdicion ? 'No editable desde aquí' : 'Entre 4 y 10 caracteres'}
+                  <input type="password" className="form-control" minLength={6} maxLength={10}
+                    placeholder={esEdicion ? 'No editable desde aquí' : 'Entre 6 y 10 caracteres'}
                     disabled={esEdicion}
                     value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-                  <small className="text-muted">{esEdicion ? 'La contraseña la cambia el propio usuario.' : 'Requerida (entre 4 y 10 caracteres).'}</small>
+                  <small className="text-muted">{esEdicion ? 'La contraseña la cambia el propio usuario.' : 'Requerida (entre 6 y 10 caracteres).'}</small>
                 </div>
                 <div className="col-md-6">
                   <label className="form-label fw-semibold">Región *</label>

@@ -1,13 +1,26 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import AdminDashboard from './AdminDashboard';
+import AdminOrdenes from './AdminOrdenes';
 import AdminProductos from './AdminProductos';
+import AdminCategorias from './AdminCategorias';
 import AdminUsuarios from './AdminUsuarios';
-//Falta implementar nuevas funciones dentro de Admin, ademas de mejorar el layout general.
+
+const SECCIONES = [
+  { id: 'dashboard', etiqueta: 'Dashboard', icono: 'fa-gauge-high' },
+  { id: 'ordenes', etiqueta: 'Órdenes', icono: 'fa-receipt' },
+  { id: 'productos', etiqueta: 'Productos', icono: 'fa-boxes-stacked' },
+  { id: 'categorias', etiqueta: 'Categorías', icono: 'fa-layer-group' },
+  { id: 'usuarios', etiqueta: 'Usuarios', icono: 'fa-users', soloAdmin: true },
+];
+
 export default function AdminLayout() {
   const { perfil, signOut } = useAuth();
-  const [seccion, setSeccion] = useState('productos');
+  const [seccion, setSeccion] = useState('dashboard');
   const esVendedor = perfil?.tipo === 'Vendedor';
+
+  const seccionesVisibles = SECCIONES.filter((s) => !(s.soloAdmin && esVendedor));
 
   return (
     <>
@@ -22,18 +35,17 @@ export default function AdminLayout() {
           </button>
           <div className="collapse navbar-collapse mt-3 mt-lg-0" id="navbarAdminContent">
             <ul className="navbar-nav mx-lg-auto mb-3 mb-lg-0 nav-pills-custom gap-1">
-              <li className="nav-item">
-                <a className={`nav-link ${seccion === 'productos' ? 'active' : ''}`} href="#" onClick={(e) => { e.preventDefault(); setSeccion('productos'); }}>
-                  <i className="fa-solid fa-boxes-stacked me-2"></i>Productos
-                </a>
-              </li>
-              {!esVendedor && (
-                <li className="nav-item">
-                  <a className={`nav-link ${seccion === 'usuarios' ? 'active' : ''}`} href="#" onClick={(e) => { e.preventDefault(); setSeccion('usuarios'); }}>
-                    <i className="fa-solid fa-users me-2"></i>Usuarios
+              {seccionesVisibles.map((s) => (
+                <li className="nav-item" key={s.id}>
+                  <a
+                    className={`nav-link ${seccion === s.id ? 'active' : ''}`}
+                    href="#"
+                    onClick={(e) => { e.preventDefault(); setSeccion(s.id); }}
+                  >
+                    <i className={`fa-solid ${s.icono} me-2`}></i>{s.etiqueta}
                   </a>
                 </li>
-              )}
+              ))}
             </ul>
             <div className="d-flex align-items-center gap-3">
               <Link to="/" className="btn btn-exit btn-sm rounded-pill px-3 py-2">
@@ -53,7 +65,11 @@ export default function AdminLayout() {
       </nav>
 
       <div className="content-body">
-        {seccion === 'productos' ? <AdminProductos /> : <AdminUsuarios />}
+        {seccion === 'dashboard' && <AdminDashboard />}
+        {seccion === 'ordenes' && <AdminOrdenes />}
+        {seccion === 'productos' && <AdminProductos />}
+        {seccion === 'categorias' && <AdminCategorias />}
+        {seccion === 'usuarios' && !esVendedor && <AdminUsuarios />}
       </div>
     </>
   );

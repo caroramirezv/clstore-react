@@ -1,521 +1,189 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Swal from 'sweetalert2';
-import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { formatoCLP } from '../lib/validaciones';
-import { REGIONES_Y_COMUNAS } from '../data/regionesYComunas';
-import BoletaModal from '../components/boletaModal';
+import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
+import { REGIONES_Y_COMUNAS } from '../data/regionesYComunas';
+import { formatoCLP, calcularPrecioFinal } from '../lib/validaciones';
+
 export default function Checkout() {
-  const { items, total, vaciarCarrito } = useCart();
-  const { usuario, perfil } = useAuth();
   const navigate = useNavigate();
+  const { perfil, usuario } = useAuth();
+  const { items, total, vaciarCarrito } = useCart();
 
-  const listaRegiones = Array.isArray(REGIONES_Y_COMUNAS) ? REGIONES_Y_COMUNAS : [];
-  const regionInicial = listaRegiones[0]?.region || 'Arica y Parinacota';
-  const comunaInicial = listaRegiones[0]?.comunas?.[0] || 'Arica';
-
-  // Estados del flujo de pago: 'formulario' | 'exito' | 'error'
-  const [estadoPago, setEstadoPago] = useState('formulario');
-  const [numOrden, setNumOrden] = useState('');
-  const [codigoOrden, setCodigoOrden] = useState('');
-  const [simularError, setSimularError] = useState(false);
-  const [mostrarBoleta, setMostrarBoleta] = useState(false);
-
-  // Resguardo del resumen de compra al procesar el pago
-  const [resumenCompra, setResumenCompra] = useState({ items: [], total: 0 });
-
-  const [formData, setFormData] = useState({
-    rut:'',
-    nombre: '',
-    apellidos: '',
-    correo: '',
-    calle: '',
-    departamento: '',
-    region: regionInicial,
-    comuna: comunaInicial,
-    indicaciones: '',
+  const [form, setForm] = useState({
+    nombre: perfil?.nombre || '',
+    apellidos: perfil?.apellidos || '',
+    correo: perfil?.correo || usuario?.email || '',
+    telefono: '',
+    region: perfil?.region || '',
+    comuna: perfil?.comuna || '',
+    direccion: perfil?.direccion || '',
+    metodoPago: 'tarjeta',
   });
+  const [procesando, setProcesando] = useState(false);
 
-  // Autocompletado de datos del usuario autenticado
-  useEffect(() => {
-    if (usuario || perfil) {
-      const correoUsuario = usuario?.email || perfil?.email || '';
-      const nombreUsuario =
-        perfil?.nombre ||
-        usuario?.user_metadata?.nombre ||
-        usuario?.displayName?.split(' ')[0] ||
-        '';
+  const comunasDisponibles = REGIONES_Y_COMUNAS.find((r) => r.region === form.region)?.comunas || [];
 
-      const apellidosUsuario =
-        perfil?.apellidos ||
-        perfil?.apellido ||
-        usuario?.user_metadata?.apellidos ||
-        usuario?.displayName?.split(' ').slice(1).join(' ') ||
-        '';
-
-      const calleUsuario = perfil?.calle || perfil?.direccion || '';
-      const deptoUsuario = perfil?.departamento || perfil?.depto || '';
-      const indicacionesUsuario = perfil?.indicaciones || '';
-
-      const regionPerfil = perfil?.region || '';
-      const regionEncontrada = listaRegiones.find((r) => r.region === regionPerfil);
-
-      let regionFinal = regionInicial;
-      let comunaFinal = comunaInicial;
-
-      if (regionEncontrada) {
-        regionFinal = regionEncontrada.region;
-        if (regionEncontrada.comunas.includes(perfil?.comuna)) {
-          comunaFinal = perfil.comuna;
-        } else {
-          comunaFinal = regionEncontrada.comunas[0] || '';
-        }
-      }
-
-      setFormData((prev) => ({
-        ...prev,
-        nombre: nombreUsuario || prev.nombre,
-        apellidos: apellidosUsuario || prev.apellidos,
-        correo: correoUsuario || prev.correo,
-        calle: calleUsuario || prev.calle,
-        departamento: deptoUsuario || prev.departamento,
-        region: regionFinal,
-        comuna: comunaFinal,
-        indicaciones: indicacionesUsuario || prev.indicaciones,
-      }));
-    }
-  }, [usuario, perfil]);
-
-  const regionSeleccionadaObj = listaRegiones.find((r) => r.region === formData.region);
-  const comunasDisponibles = regionSeleccionadaObj?.comunas || [];
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleRegionChange = (e) => {
-    const nuevaRegion = e.target.value;
-    const regionObj = listaRegiones.find((r) => r.region === nuevaRegion);
-    const primeraComuna = regionObj?.comunas?.[0] || '';
-
-    setFormData((prev) => ({
-      ...prev,
-      region: nuevaRegion,
-      comuna: primeraComuna,
-    }));
-  };
-
-  const handlePagar = async (e) => {
-  e.preventDefault();
-
-  if (simularError) {            // el error simulado queda igual que hoy
-    setNumOrden(Math.floor(10000000 + Math.random() * 90000000));
-    setResumenCompra({ items: [...items], total });
-    setEstadoPago('error');
-    return;
+  function actualizar(campo, valor) {
+    setForm((prev) => ({ ...prev, [campo]: valor, ...(campo === 'region' ? { comuna: '' } : {}) }));
   }
 
-  const { data: boleta, error } = await supabase.rpc('crear_boleta', {
-    p_cliente: formData,
-    p_items: items.map((it) => ({ producto_id: it.producto_id, cantidad: it.cantidad })),
-  });
-
-  if (error) {                   // por ejemplo "Stock insuficiente para ..."
-    Swal.fire({ icon: 'error', title: 'No se pudo pagar', text: error.message });
-    setEstadoPago('error');
-    return;
-  }
-
-  setNumOrden(boleta.folio);
-  setCodigoOrden(boleta.codigo_boleta);
-  setResumenCompra({ items: [...items], total: boleta.total_boleta });
-  setEstadoPago('exito');
-  vaciarCarrito();
-};
-
-  const handleEnviarBoleta = () => {
-    Swal.fire({
-      title: '¡Boleta enviada!',
-      text: `Se ha enviado la boleta electrónica en PDF al correo: ${formData.correo}`,
-      icon: 'success',
-      confirmButtonText: 'Entendido',
-      confirmButtonColor: '#198754',
-    });
-  };
-
-  const itemsAMostrar = estadoPago === 'formulario' ? items : resumenCompra.items;
-  const totalAMostrar = estadoPago === 'formulario' ? total : resumenCompra.total;
-
-  if (items.length === 0 && estadoPago === 'formulario') {
+  if (items.length === 0) {
     return (
-      <div className="container text-center py-5">
-        <h4>No hay productos en tu carrito para procesar el pago.</h4>
-        <button className="btn btn-primary rounded-pill mt-3" onClick={() => navigate('/productos')}>
-          Ver Productos
-        </button>
+      <div className="container my-5 text-center">
+        <i className="fa-solid fa-cart-flatbed-suitcases fa-3x text-muted mb-3"></i>
+        <p className="fs-5 text-muted">Tu carrito está vacío, no hay nada que pagar.</p>
+        <Link to="/productos" className="btn btn-primary rounded-pill">Ver Productos</Link>
       </div>
     );
   }
 
+  async function confirmarPago(e) {
+    e.preventDefault();
+    const { nombre, apellidos, correo, telefono, region, comuna, direccion } = form;
+    if (!nombre || !apellidos || !correo || !region || !comuna || !direccion) {
+      return;
+    }
+
+    setProcesando(true);
+
+    const itemsParaOrden = items.map((it) => ({ producto_id: it.producto_id, cantidad: it.cantidad }));
+
+    const { data, error } = await supabase.rpc('crear_orden', {
+      p_usuario_id: usuario?.id || null,
+      p_nombre: nombre,
+      p_apellidos: apellidos,
+      p_correo: correo,
+      p_telefono: telefono || null,
+      p_region: region,
+      p_comuna: comuna,
+      p_direccion: direccion,
+      p_items: itemsParaOrden,
+    });
+
+    setProcesando(false);
+
+    if (error) {
+      // El carrito NO se vacía: el stock tampoco se tocó (la función es atómica),
+      // así que la persona puede ajustar cantidades y volver a intentar.
+      navigate('/resumen-compra', { state: { exito: false, motivo: error.message } });
+      return;
+    }
+
+    const itemsResumen = items.map((it) => {
+      const { precioFinal } = calcularPrecioFinal(it.productos);
+      return { nombre: it.productos?.nombre, cantidad: it.cantidad, precio: precioFinal };
+    });
+
+    await vaciarCarrito();
+    navigate(`/resumen-compra/${data.orden_id}`, {
+      state: {
+        exito: true,
+        ordenId: data.orden_id,
+        total: data.total,
+        items: itemsResumen,
+        comprador: { nombre, apellidos, correo, region, comuna, direccion },
+      },
+    });
+  }
+
   return (
-    <div className="bg-light min-vh-100 py-4 text-dark">
-      <div className="container" style={{ maxWidth: '850px' }}>
-        <form onSubmit={handlePagar} className="bg-white p-4 p-md-5 rounded shadow-sm border">
+    <div className="container my-5">
+      <h2 className="fw-bold mb-4"><i className="fa-solid fa-lock me-2"></i>Finalizar Compra</h2>
 
-          {/* 1. HEADER COMPRA EXITOSA */}
-          {estadoPago === 'exito' && (
-            <div className="mb-4 pb-2 border-bottom">
-              <div className="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                <div className="d-flex align-items-center gap-2">
-                  <span
-                    className="text-success border border-success rounded-circle d-inline-flex justify-content-center align-items-center fw-bold"
-                    style={{ width: '28px', height: '28px', fontSize: '15px' }}
-                  >
-                    ✓
-                  </span>
-                  <h2 className="h4 fw-bold text-dark m-0">
-                    Se ha realizado la compra. nro #{numOrden}
-                  </h2>
-                </div>
-                <span className="text-muted small align-self-center">
-                  Código orden: <strong>{codigoOrden}</strong>
-                </span>
+      <div className="row g-4">
+        <div className="col-lg-7">
+          <form onSubmit={confirmarPago} className="card border-0 shadow-sm rounded-4 p-4">
+            <h5 className="fw-bold mb-3">Datos del comprador</h5>
+            {usuario && (
+              <p className="text-muted small mb-3">
+                <i className="fa-solid fa-circle-check text-success me-1"></i>
+                Completamos estos datos con tu perfil; puedes editarlos si este pedido es para otra persona.
+              </p>
+            )}
+            <div className="row g-3 mb-2">
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Nombre *</label>
+                <input type="text" className="form-control" required value={form.nombre} onChange={(e) => actualizar('nombre', e.target.value)} />
               </div>
-              <small className="text-muted d-block">Comprobante de compra emitido correctamente</small>
-            </div>
-          )}
-
-          {/* 2. HEADER ERROR DE PAGO */}
-          {estadoPago === 'error' && (
-            <div className="text-center mb-4 pb-3 border-bottom">
-              <div className="d-flex align-items-center justify-content-center gap-2 mb-1">
-                <span
-                  className="text-danger border border-danger rounded-circle d-inline-flex justify-content-center align-items-center fw-bold"
-                  style={{ width: '28px', height: '28px', fontSize: '14px' }}
-                >
-                  ✕
-                </span>
-                <h2 className="h4 fw-bold text-secondary m-0">
-                  No se pudo realizar el pago. nro #{numOrden}
-                </h2>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Apellidos *</label>
+                <input type="text" className="form-control" required value={form.apellidos} onChange={(e) => actualizar('apellidos', e.target.value)} />
               </div>
-              <p className="text-muted small mb-3">Detalle de la transacción fallida</p>
-
-              <button
-                type="button"
-                className="btn btn-success fw-bold px-4 py-2 rounded-2 text-uppercase"
-                onClick={() => setEstadoPago('formulario')}
-              >
-                VOLVER A REALIZAR EL PAGO
-              </button>
-            </div>
-          )}
-
-          {/* 3. HEADER FORMULARIO ACTIVO */}
-          {estadoPago === 'formulario' && (
-            <>
-              {usuario && (
-                <div className="alert alert-info py-2 px-3 mb-4 small d-flex align-items-center justify-content-between">
-                  <span>💡 Sesión iniciada como <strong>{formData.correo}</strong>. Datos autocompletados.</span>
-                </div>
-              )}
-              <div className="d-flex justify-content-between align-items-center mb-3">
-                <div>
-                  <h2 className="h4 fw-bold m-0">Carrito de compra</h2>
-                  <small className="text-muted">Completa la siguiente información</small>
-                </div>
-                <span className="badge bg-primary px-3 py-2 fs-6">
-                  Total a pagar: {formatoCLP(total)}
-                </span>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Correo *</label>
+                <input type="email" className="form-control" required value={form.correo} onChange={(e) => actualizar('correo', e.target.value)} />
               </div>
-            </>
-          )}
-
-          {/* VISTA DINÁMICA: INPUTS DE EDICIÓN vs FICHA DE RECEPTOR TIPO BOLETA */}
-          {estadoPago === 'formulario' ? (
-            /* A. MIENTRAS SE LLENA EL CHECKOUT (INPUTS ACTIVOS) */
-            <fieldset className="border-0 p-0 m-0">
-              <div className="row g-3 mb-4">
-                {/* INPUT RUT */}
-                <div className="col-md-3">
-                  <label className="form-label text-muted small fw-semibold">RUT*</label>
-                  <input
-                    type="text"
-                    className="form-control bg-light"
-                    name="rut"
-                    placeholder="12.345.678-K"
-                    value={formData.rut}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-                <div className="col-md-4">
-                  <label className="form-label text-muted small fw-semibold">Nombre*</label>
-                  <input
-                    type="text"
-                    className="form-control bg-light"
-                    name="nombre"
-                    value={formData.nombre}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-
-                <div className="col-md-4">
-                  <label className="form-label text-muted small fw-semibold">Apellidos*</label>
-                  <input
-                    type="text"
-                    className="form-control bg-light"
-                    name="apellidos"
-                    value={formData.apellidos}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                
-
-                <div className="col-md-4">
-                  <label className="form-label text-muted small fw-semibold">Correo*</label>
-                  <input
-                    type="email"
-                    className="form-control bg-light"
-                    name="correo"
-                    value={formData.correo}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <h3 className="h6 fw-bold mb-3 text-secondary">Dirección de entrega de los productos</h3>
-                <div className="row g-3">
-                  <div className="col-md-6">
-                    <label className="form-label text-muted small fw-semibold">Calle*</label>
-                    <input
-                      type="text"
-                      className="form-control bg-light"
-                      name="calle"
-                      value={formData.calle}
-                      onChange={handleChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label text-muted small fw-semibold">Departamento (opcional)</label>
-                    <input
-                      type="text"
-                      className="form-control bg-light"
-                      placeholder="Ej: 603"
-                      name="departamento"
-                      value={formData.departamento}
-                      onChange={handleChange}
-                    />
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label text-muted small fw-semibold">Región*</label>
-                    <select
-                      className="form-select bg-light"
-                      name="region"
-                      value={formData.region}
-                      onChange={handleRegionChange}
-                      required
-                    >
-                      {listaRegiones.map((reg) => (
-                        <option key={reg.region} value={reg.region}>
-                          {reg.region}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-md-6">
-                    <label className="form-label text-muted small fw-semibold">Comuna*</label>
-                    <select
-                      className="form-select bg-light"
-                      name="comuna"
-                      value={formData.comuna}
-                      onChange={handleChange}
-                      required
-                    >
-                      {comunasDisponibles.map((com) => (
-                        <option key={com} value={com}>
-                          {com}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-12">
-                    <label className="form-label text-muted small fw-semibold">Indicaciones para la entrega (opcional)</label>
-                    <textarea
-                      className="form-control bg-light"
-                      rows="2"
-                      placeholder="Ej.: Entre calles, color del edificio, no tiene timbre."
-                      name="indicaciones"
-                      value={formData.indicaciones}
-                      onChange={handleChange}
-                    ></textarea>
-                  </div>
-                </div>
-              </div>
-            </fieldset>
-          ) : (
-            /* B. UNA VEZ PAGADO: FICHA FISCAL DE RECEPTOR (ESTILO BOLETA) */
-            <div className="border border-2 border-dark rounded-3 p-3 mb-4 bg-white shadow-sm">
-              <div className="d-flex align-items-center justify-content-between mb-2 pb-2 border-bottom">
-                <span className="badge bg-danger text-uppercase px-2 py-1" style={{ fontSize: '11px', letterSpacing: '0.5px' }}>
-                  RECEPTOR BOLETA ELECTRÓNICA
-                </span>
-                <span className="small text-muted font-monospace">
-                  FOLIO N° <strong className="text-danger">{numOrden}</strong>
-                </span>
-              </div>
-
-              <div className="row g-2 text-uppercase font-monospace" style={{ fontSize: '13px', color: '#212529' }}>
-                <div className="col-md-6">
-                  <div className="mb-1">
-                    <span className="text-secondary fw-normal">SEÑOR(A):</span> <strong>{formData.nombre} {formData.apellidos}</strong>
-                  </div>
-                  <div className="mb-1">
-                    <span className="text-secondary fw-normal">CORREO:</span> <strong className="text-lowercase">{formData.correo}</strong>
-                  </div>
-                </div>
-                <div className="col-md-6">
-                  <div className="mb-1">
-                    <span className="text-secondary fw-normal">DIRECCIÓN:</span> <strong>{formData.calle} {formData.departamento && `(DEPTO/CASA ${formData.departamento})`}</strong>
-                  </div>
-                  <div className="mb-1">
-                    <span className="text-secondary fw-normal">COMUNA/REGIÓN:</span> <strong>{formData.comuna}, {formData.region}</strong>
-                  </div>
-                </div>
-
-                {formData.indicaciones && (
-                  <div className="col-12 mt-2 pt-2 border-top text-lowercase font-sans-serif">
-                    <span className="fw-bold text-uppercase text-secondary small">Nota despacho:</span>{" "}
-                    <span className="fst-italic text-dark">"{formData.indicaciones}"</span>
-                  </div>
-                )}
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Teléfono (Opcional)</label>
+                <input type="tel" className="form-control" placeholder="+56 9 1234 5678" value={form.telefono} onChange={(e) => actualizar('telefono', e.target.value)} />
               </div>
             </div>
-          )}
 
-          {/* TABLA DE PRODUCTOS RESUMEN */}
-          <div className="table-responsive mb-4">
-            <table className="table align-middle text-center border-top">
-              <thead className="table-light">
-                <tr>
-                  <th scope="col" className="text-start">Imagen</th>
-                  <th scope="col" className="text-start">Nombre</th>
-                  <th scope="col">Precio</th>
-                  <th scope="col">Cantidad</th>
-                  <th scope="col">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itemsAMostrar.map((it) => {
-                  const p = it.productos || {};
-                  const subtotal = (p.precio || 0) * it.cantidad;
-                  return (
-                    <tr key={it.producto_id}>
-                      <td className="text-start">
-                        <img
-                          src={p.imagen}
-                          alt={p.nombre}
-                          style={{ width: '40px', height: '30px', objectFit: 'cover' }}
-                          className="rounded"
-                        />
-                      </td>
-                      <td className="text-start fw-medium">{p.nombre}</td>
-                      <td>{formatoCLP(p.precio)}</td>
-                      <td>{it.cantidad}</td>
-                      <td>{formatoCLP(subtotal)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <h5 className="fw-bold mb-3 mt-4">Dirección de envío</h5>
+            <div className="row g-3 mb-2">
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Región *</label>
+                <select className="form-select" required value={form.region} onChange={(e) => actualizar('region', e.target.value)}>
+                  <option value="">Seleccione región</option>
+                  {REGIONES_Y_COMUNAS.map((r) => <option key={r.region} value={r.region}>{r.region}</option>)}
+                </select>
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-semibold">Comuna *</label>
+                <select className="form-select" required disabled={!form.region} value={form.comuna} onChange={(e) => actualizar('comuna', e.target.value)}>
+                  <option value="">Seleccione comuna</option>
+                  {comunasDisponibles.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div className="col-12">
+                <label className="form-label fw-semibold">Dirección *</label>
+                <input type="text" className="form-control" required value={form.direccion} onChange={(e) => actualizar('direccion', e.target.value)} />
+              </div>
+            </div>
+
+            <h5 className="fw-bold mb-3 mt-4">Método de pago</h5>
+            <select className="form-select mb-2" value={form.metodoPago} onChange={(e) => actualizar('metodoPago', e.target.value)}>
+              <option value="tarjeta">Tarjeta de crédito/débito</option>
+              <option value="transferencia">Transferencia bancaria</option>
+            </select>
+            <small className="text-muted d-block mb-4">
+              Pago simulado para efectos de esta entrega: no se procesa ningún cobro real.
+            </small>
+
+            <button type="submit" disabled={procesando} className="btn btn-primary rounded-pill w-100 py-2 fw-bold">
+              {procesando ? 'Procesando pago...' : `Pagar ${formatoCLP(total)}`}
+            </button>
+          </form>
+        </div>
+
+        <div className="col-lg-5">
+          <div className="card border-0 shadow-sm rounded-4 p-4">
+            <h5 className="fw-bold mb-4">Resumen de tu pedido</h5>
+            {items.map((it) => {
+              const { precioFinal } = calcularPrecioFinal(it.productos);
+              return (
+                <div key={it.producto_id} className="d-flex justify-content-between align-items-center mb-3">
+                  <div className="d-flex align-items-center">
+                    <img src={it.productos?.imagen} alt={it.productos?.nombre} style={{ width: 48, height: 48, objectFit: 'cover' }} className="rounded me-3" />
+                    <div>
+                      <div className="fw-semibold">{it.productos?.nombre}</div>
+                      <div className="text-muted small">x{it.cantidad}</div>
+                    </div>
+                  </div>
+                  <span className="fw-semibold">{formatoCLP(precioFinal * it.cantidad)}</span>
+                </div>
+              );
+            })}
+            <hr />
+            <div className="d-flex justify-content-between fs-5">
+              <span className="fw-bold">Total:</span>
+              <span className="fw-bold text-primary">{formatoCLP(total)}</span>
+            </div>
           </div>
-
-          {/* ACCIONES Y BOTONES FINALES */}
-          {estadoPago === 'exito' && (
-            <div>
-              <div className="bg-light p-3 text-center rounded border mb-4">
-                <span className="fs-5 fw-bold text-dark">
-                  Total pagado: {formatoCLP(totalAMostrar)}
-                </span>
-              </div>
-
-              <div className="d-flex justify-content-center gap-3 flex-wrap">
-                <button
-                  type="button"
-                  className="btn btn-danger px-4 py-2 small fw-semibold"
-                  onClick={() => setMostrarBoleta(true)}
-                >
-                  Imprimir boleta en PDF
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-success px-4 py-2 small fw-semibold"
-                  onClick={handleEnviarBoleta}
-                >
-                  Enviar boleta por email
-                </button>
-              </div>
-            </div>
-          )}
-
-          {estadoPago === 'error' && (
-            <div className="bg-light p-3 text-center rounded border">
-              <span className="fs-5 fw-bold text-dark">
-                Total pagado: {formatoCLP(totalAMostrar)}
-              </span>
-            </div>
-          )}
-
-          {estadoPago === 'formulario' && (
-            <div>
-              <div className="form-check form-switch mb-3 d-flex justify-content-end align-items-center gap-2">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  id="switchSimularError"
-                  checked={simularError}
-                  onChange={(e) => setSimularError(e.target.checked)}
-                />
-                <label className="form-check-label text-muted small" htmlFor="switchSimularError">
-                  Simular error de pago (Para evaluación)
-                </label>
-              </div>
-
-              <div className="d-flex justify-content-end">
-                <button type="submit" className="btn btn-success btn-lg px-4 fs-6 fw-semibold">
-                  Pagar ahora {formatoCLP(total)}
-                </button>
-              </div>
-            </div>
-          )}
-
-        </form>
+        </div>
       </div>
-
-      {/* MODAL DE BOLETA ELECTRÓNICA */}
-      <BoletaModal
-        show={mostrarBoleta}
-        onClose={() => setMostrarBoleta(false)}
-        numOrden={numOrden}
-        codigoOrden={codigoOrden}
-        cliente={formData}
-        items={itemsAMostrar}
-        total={totalAMostrar}
-      />
     </div>
   );
 }

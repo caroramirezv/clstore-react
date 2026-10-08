@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { formatoCLP } from '../lib/validaciones';
+import { formatoCLP } from '../test/validaciones';
 import { useCart } from '../context/CartContext';
 
 export default function ProductCard({ producto, mostrarBotonAgregar = true }) {
